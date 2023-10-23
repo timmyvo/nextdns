@@ -1,0 +1,102 @@
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request))
+})
+
+async function handleRequest(request) {
+  const apiKey = "5acfbbf208550d92794dd49ec12b9940eb63fd2f";
+  const conditionalId = "220290"; // Replace with the conditional ID
+  const apiEndpoint = "https://api.nextdns.io/profiles";
+
+  const requests = [];
+
+  // Define the number of requests to send concurrently
+  const numberOfRequests = 20;
+
+  for (let i = 0; i < numberOfRequests; i++) {
+    const name = `Tim${i}`
+    requests.push(createAndProcessProfile(apiKey, apiEndpoint, conditionalId, name));
+  }
+
+  try {
+    await Promise.all(requests);
+    return new Response("All profiles processed successfully.");
+  } catch (error) {
+    console.log("Error:", error);
+    return new Response(`Error: ${error}`, { status: 500 });
+  }
+}
+
+async function createAndProcessProfile(apiKey, apiEndpoint, conditionalId, name) {
+  // Prepare the data for the new profile
+  const profileData = {
+    name: name,
+    security: {
+      threatIntelligenceFeeds: true,
+      googleSafeBrowsing: true,
+      cryptojacking: true,
+      idnHomographs: true,
+      typosquatting: true,
+      dga: true,
+      csam: true
+    },
+    privacy: {
+      blocklists: [{ id: "nextdns-recommended" }],
+      disguisedTrackers: true
+    },
+    settings: {
+      logs: { enabled: true },
+      performance: { ecs: true }
+    }
+  };
+
+  const headers = new Headers({
+    "X-Api-Key": apiKey,
+    "Content-Type": "application/json",
+  });
+
+  const options = {
+    method: "POST",
+    headers,
+    body: JSON.stringify(profileData),
+  };
+
+  try {
+    const response = await fetch(apiEndpoint, options);
+    const responseBody = await response.text();
+
+    console.log("API Response Body:", responseBody);
+
+    if (response.ok) {
+      const responseData = JSON.parse(responseBody);
+      if (responseData && responseData.data && responseData.data.id) {
+        const id = responseData.data.id;
+        console.log("Extracted ID:", id);
+
+        if (id !== conditionalId) {
+          // Delete the profile if it doesn't match the conditional ID
+          console.log("ID does not match the conditional ID. Deleting the profile...");
+          const deleteEndpoint = `https://api.nextdns.io/profiles/${id}`;
+          const deleteOptions = {
+            method: "DELETE",
+            headers,
+          };
+          const deleteResponse = await fetch(deleteEndpoint, deleteOptions);
+          if (deleteResponse.ok) {
+            console.log("Profile deleted successfully.");
+          } else {
+            console.log("Failed to delete the profile.", deleteResponse.status, deleteResponse.statusText);
+          }
+        } else {
+          console.log("ID matches the conditional ID. No profile deletion needed.");
+        }
+      } else {
+        console.log("ID not found in the response.");
+      }
+    } else {
+      console.log("Failed to create a new profile.", response.status, response.statusText);
+    }
+  } catch (error) {
+    console.log("Error:", error);
+    throw error;
+  }
+}
