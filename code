@@ -1,10 +1,10 @@
 addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request))
-})
+});
 
 async function handleRequest(request) {
   const apiKey = "5acfbbf208550d92794dd49ec12b9940eb63fd2f";
-  const conditionalId = "220290"; // Replace with the conditional ID
+  const conditionalIds = ["220290", "000000", "999999", "868686", "686868", "911911", "113113", "amazon", "nhutvo"];
   const apiEndpoint = "https://api.nextdns.io/profiles";
 
   const requests = [];
@@ -13,8 +13,8 @@ async function handleRequest(request) {
   const numberOfRequests = 20;
 
   for (let i = 0; i < numberOfRequests; i++) {
-    const name = `Tim${i}`
-    requests.push(createAndProcessProfile(apiKey, apiEndpoint, conditionalId, name));
+    const name = `Tim${i}`;
+    requests.push(createAndProcessProfile(apiKey, apiEndpoint, conditionalIds, name));
   }
 
   try {
@@ -26,7 +26,7 @@ async function handleRequest(request) {
   }
 }
 
-async function createAndProcessProfile(apiKey, apiEndpoint, conditionalId, name) {
+async function createAndProcessProfile(apiKey, apiEndpoint, conditionalIds, name) {
   // Prepare the data for the new profile
   const profileData = {
     name: name,
@@ -46,8 +46,7 @@ async function createAndProcessProfile(apiKey, apiEndpoint, conditionalId, name)
     settings: {
       logs: { enabled: true },
       performance: { ecs: true }
-    }
-  };
+    };
 
   const headers = new Headers({
     "X-Api-Key": apiKey,
@@ -72,9 +71,10 @@ async function createAndProcessProfile(apiKey, apiEndpoint, conditionalId, name)
         const id = responseData.data.id;
         console.log("Extracted ID:", id);
 
-        if (id !== conditionalId) {
-          // Delete the profile if it doesn't match the conditional ID
-          console.log("ID does not match the conditional ID. Deleting the profile...");
+        if (conditionalIds.includes(id)) {
+          console.log("ID matches one of the conditional IDs. No profile deletion needed.");
+        } else {
+          console.log("ID does not match any of the conditional IDs. Deleting the profile...");
           const deleteEndpoint = `https://api.nextdns.io/profiles/${id}`;
           const deleteOptions = {
             method: "DELETE",
@@ -86,8 +86,6 @@ async function createAndProcessProfile(apiKey, apiEndpoint, conditionalId, name)
           } else {
             console.log("Failed to delete the profile.", deleteResponse.status, deleteResponse.statusText);
           }
-        } else {
-          console.log("ID matches the conditional ID. No profile deletion needed.");
         }
       } else {
         console.log("ID not found in the response.");
